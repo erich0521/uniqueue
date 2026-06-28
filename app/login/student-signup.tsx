@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+const API_URL = 'http://10.0.2.2/UniQueue/backend/register.php';
+
 // ─── Palette ─────────────────────────────────────────────────────────────────
 const C = {
   oliveGreen: '#556B2F',
@@ -35,7 +37,6 @@ export default function StudentSignupScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [srCode, setSrCode] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -45,24 +46,44 @@ export default function StudentSignupScreen() {
 
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  function handleSignUp() {
+  async function handleSignUp() {
     setError('');
 
     if (!firstName.trim()) return setError('Please enter your first name.');
     if (!lastName.trim()) return setError('Please enter your last name.');
     if (!srCode.trim()) return setError('Please enter your SR-Code.');
-    if (!email.trim()) return setError('Please enter your email address.');
     if (!password) return setError('Please enter a password.');
     if (password.length < 8) return setError('Password must be at least 8 characters.');
     if (password !== confirmPassword) return setError('Passwords do not match.');
 
     setLoading(true);
-    // TODO: replace with real registration call
-    setTimeout(() => {
+
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          srCode: srCode.trim(),
+          password,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Registration failed.');
+      }
+
       setLoading(false);
-      // router.replace('/student/dashboard');
-      setError('Registration failed. Please try again.');
-    }, 1500);
+      setError('');
+      alert(result.message);
+      router.back();
+    } catch (err: any) {
+      setLoading(false);
+      setError(err.message || 'Registration failed. Please try again.');
+    }
   }
 
   const field = (key: string) => ({
@@ -158,23 +179,6 @@ export default function StudentSignupScreen() {
               autoCorrect={false}
               returnKeyType="next"
               {...field('srCode')}
-            />
-          </View>
-
-          {/* Email */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={[styles.input, focusedField === 'email' && styles.inputFocused]}
-              placeholder="juan@g.batstate-u.edu.ph"
-              placeholderTextColor={C.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              returnKeyType="next"
-              {...field('email')}
             />
           </View>
 
