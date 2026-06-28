@@ -13,8 +13,9 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { REGISTER_URL } from '../../constants/backend';
 
-const API_URL = 'http://10.0.2.2/UniQueue/backend/register.php';
+const API_URL = REGISTER_URL;
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 const C = {
@@ -79,7 +80,7 @@ export default function StudentSignupScreen() {
       setLoading(false);
       setError('');
       alert(result.message);
-      router.back();
+      router.replace('/login/student-dashboard' as any);
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'Registration failed. Please try again.');
@@ -124,6 +125,7 @@ export default function StudentSignupScreen() {
         <Text style={styles.subheading}>
           Fill in your details to register as a student.
         </Text>
+        <Text style={styles.debugText}>API URL: {API_URL}</Text>
 
         {/* ── Error banner ────────────────────────────────────────── */}
         {error ? (
@@ -321,7 +323,14 @@ const styles = StyleSheet.create({
     color: C.textMuted,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 28,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    color: C.oliveGreen,
+    textAlign: 'center',
+    marginBottom: 18,
     paddingHorizontal: 8,
   },
   errorBanner: {

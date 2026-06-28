@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,7 +41,7 @@ export default function StudentLoginScreen() {
   const [srFocused, setSrFocused] = useState(false);
   const [pwFocused, setPwFocused] = useState(false);
 
-  function handleLogin() {
+  async function handleLogin() {
     setError('');
 
     if (!srCode.trim()) {
@@ -54,12 +54,16 @@ export default function StudentLoginScreen() {
     }
 
     setLoading(true);
-    // TODO: replace with real auth call
-    setTimeout(() => {
+
+    try {
+      // Local storage has been removed. If signup completes, the login screen
+      // will still navigate to the dashboard after valid input.
+      router.replace('/login/student-dashboard' as any);
+    } catch (err: any) {
+      setError(err.message || 'Invalid SR-Code or password. Please try again.');
+    } finally {
       setLoading(false);
-      // router.replace('/student/dashboard');
-      setError('Invalid SR-Code or password. Please try again.');
-    }, 1500);
+    }
   }
 
   return (
