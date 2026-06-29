@@ -58,7 +58,7 @@ export default function StudentLoginScreen() {
     try {
       // Local storage has been removed. If signup completes, the login screen
       // will still navigate to the dashboard after valid input.
-      router.replace('/login/student-dashboard' as any);
+      router.replace('/student/dashboard' as any);
     } catch (err: any) {
       setError(err.message || 'Invalid SR-Code or password. Please try again.');
     } finally {

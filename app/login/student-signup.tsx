@@ -2,15 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { REGISTER_URL } from '../../constants/backend';
@@ -80,7 +80,7 @@ export default function StudentSignupScreen() {
       setLoading(false);
       setError('');
       alert(result.message);
-      router.replace('/login/student-dashboard' as any);
+      router.replace('/student/dashboard' as any);
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'Registration failed. Please try again.');
