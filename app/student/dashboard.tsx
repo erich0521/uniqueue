@@ -54,21 +54,25 @@ const ACTIONS = [
     title: 'Queue status',
     description: 'Live wait times',
     icon: 'speedometer-outline' as const,
+    route: '/student/queue' as const,
   },
   {
     title: 'Request documents',
     description: 'Submit a form',
     icon: 'document-text-outline' as const,
+    route: '/student/request-documents' as const,
   },
   {
     title: 'My transactions',
     description: 'Recent activity',
     icon: 'receipt-outline' as const,
+    route: null,
   },
   {
     title: 'Feedback',
     description: 'Share your input',
     icon: 'chatbubbles-outline' as const,
+    route: null,
   },
 ];
 
@@ -126,6 +130,14 @@ export default function StudentDashboardScreen() {
     }, [])
   );
 
+  const handleActionPress = useCallback((route: string | null) => {
+    if (route) {
+      router.push(route as any);
+    }
+    // Actions without a route yet are silently ignored for now.
+    // Swap this else-branch for an Alert or a "coming soon" toast if you want feedback.
+  }, []);
+
   const firstName = student?.first_name ?? '';
   const initials = getInitials(student?.first_name, student?.last_name);
   const greeting = getTimeGreeting();
@@ -174,7 +186,11 @@ export default function StudentDashboardScreen() {
       </View>
 
       <View style={styles.body}>
-        <TouchableOpacity style={styles.queueSummary} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.queueSummary}
+          activeOpacity={0.85}
+          onPress={() => router.push('/student/queue')}
+        >
           <View style={styles.queueSummaryTop}>
             <View style={styles.queueBadge}>
               <Ionicons name="time-outline" size={15} color={C.primary} />
@@ -204,6 +220,7 @@ export default function StudentDashboardScreen() {
               key={action.title}
               style={styles.actionCard}
               activeOpacity={0.8}
+              onPress={() => handleActionPress(action.route)}
             >
               <View style={styles.cardIconBox}>
                 <Ionicons name={action.icon} size={19} color={C.primary} />
@@ -247,7 +264,6 @@ export default function StudentDashboardScreen() {
             );
           })}
         </View>
-
       </View>
     </ScrollView>
   );
@@ -536,24 +552,5 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '700',
     color: C.text,
-  },
-
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 13,
-    borderRadius: 16,
-    backgroundColor: C.surface,
-    borderWidth: 1,
-    borderColor: C.border,
-    marginTop: 4,
-    marginBottom: 12,
-  },
-  logoutText: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: C.danger,
   },
 });

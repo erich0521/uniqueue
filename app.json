@@ -8,7 +8,7 @@
     "scheme": "uniqueue",
     "userInterfaceStyle": "automatic",
     "extra": {
-      "BACKEND_HOST": "192.168.50.247"
+      "BACKEND_HOST": "192.168.1.21"
     },
     "newArchEnabled": true,
     "ios": {

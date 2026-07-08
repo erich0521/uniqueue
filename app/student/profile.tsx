@@ -98,6 +98,7 @@ export default function StudentProfileScreen() {
   }
 
   const fullName = `${student.first_name} ${student.last_name}`;
+  const collegeLabel = student.college_name || 'Not set';
   const courseLabel = student.program_name || 'No program set';
   const yearLevelLabel = student.year_level ? `${student.year_level}${ordinalSuffix(student.year_level)} Year` : 'Not set';
 
@@ -138,26 +139,24 @@ export default function StudentProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>STUDENT DETAILS</Text>
 
-          <View style={styles.detailRow}>
+          {/* College — label on top, full-width value below, right-aligned, can wrap */}
+          <View style={styles.detailRowStacked}>
             <View style={styles.detailLabelGroup}>
               <Ionicons name="school-outline" size={16} color={C.textMuted} />
               <Text style={styles.detailLabel}>College</Text>
             </View>
-            <Text style={styles.detailValue} numberOfLines={1}>
-              {student.college_name || 'Not set'}
-            </Text>
+            <Text style={styles.detailValueStacked}>{collegeLabel}</Text>
           </View>
 
           <View style={styles.rowDivider} />
 
-          <View style={styles.detailRow}>
+          {/* Program — same stacked, right-aligned treatment */}
+          <View style={styles.detailRowStacked}>
             <View style={styles.detailLabelGroup}>
               <Ionicons name="book-outline" size={16} color={C.textMuted} />
               <Text style={styles.detailLabel}>Program</Text>
             </View>
-            <Text style={styles.detailValue} numberOfLines={1}>
-              {courseLabel}
-            </Text>
+            <Text style={styles.detailValueStacked}>{courseLabel}</Text>
           </View>
 
           <View style={styles.rowDivider} />
@@ -370,6 +369,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
   },
+  // Stacked layout for long values (College, Program):
+  // label row on top, value below spanning full width, right-aligned, wraps freely.
+  detailRowStacked: {
+    paddingVertical: 4,
+  },
   detailLabelGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -386,6 +390,13 @@ const styles = StyleSheet.create({
     color: C.text,
     maxWidth: '55%',
     textAlign: 'right',
+  },
+  detailValueStacked: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: C.text,
+    textAlign: 'right',
+    marginTop: 6,
   },
   rowDivider: {
     height: 1,
