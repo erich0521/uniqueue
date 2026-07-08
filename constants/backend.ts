@@ -5,11 +5,19 @@ const extras = (Constants.expoConfig?.extra ?? Constants.manifest?.extra ?? {}) 
   BACKEND_HOST?: string;
 };
 
-const defaultHost = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+// Emulator uses 10.0.2.2, physical phone uses your laptop's IP
+const defaultHost =
+  Platform.OS === 'android' ? '192.168.50.247' : 'localhost';
+
 export const BACKEND_HOST = extras.BACKEND_HOST?.trim() || defaultHost;
-export const REGISTER_URL = `http://${BACKEND_HOST}/UniQueue/backend/register.php`;
 
-if (typeof console !== 'undefined') {
-  console.log(`[UniQueue] BACKEND_HOST=${BACKEND_HOST}, REGISTER_URL=${REGISTER_URL}`);
-}
+// Backend folder in XAMPP
+export const API_BASE_URL = `http://${BACKEND_HOST}/uniqueue_api`;
 
+export const LOGIN_URL = `${API_BASE_URL}/login.php`;
+export const REGISTER_URL = `${API_BASE_URL}/register.php`;
+export const COLLEGES_URL = `${API_BASE_URL}/colleges.php`;
+export const PROGRAMS_URL = `${API_BASE_URL}/programs.php`;
+
+console.log('[UniQueue] BACKEND_HOST:', BACKEND_HOST);
+console.log('[UniQueue] REGISTER_URL:', REGISTER_URL);

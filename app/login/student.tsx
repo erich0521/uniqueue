@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -13,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LOGIN_URL } from '../../constants/backend';
 
 // ─── Palette (matches RoleSelectScreen) ─────────────────────────────────────
 const C = {
@@ -56,8 +58,26 @@ export default function StudentLoginScreen() {
     setLoading(true);
 
     try {
-      // Local storage has been removed. If signup completes, the login screen
-      // will still navigate to the dashboard after valid input.
+      const response = await fetch(LOGIN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sr_code: srCode.trim(),
+          password,
+        }),
+      });
+
+      const text = await response.text();
+      console.log(text);
+      const result = JSON.parse(text);
+
+      if (!result.success) {
+        throw new Error(result.message || 'Invalid SR-Code or password.');
+      }
+
+      // Save the logged-in student's data so other screens (like Profile) can read it
+      await AsyncStorage.setItem('studentData', JSON.stringify(result.student));
+
       router.replace('/student/dashboard' as any);
     } catch (err: any) {
       setError(err.message || 'Invalid SR-Code or password. Please try again.');

@@ -1,21 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { REGISTER_URL } from '../../constants/backend';
+import { COLLEGES_URL, PROGRAMS_URL, REGISTER_URL } from '../../constants/backend';
 
-const API_URL = REGISTER_URL;
+// ─── Types (matches colleges.php / programs.php column aliases) ─────────────
+type College = { college_id: number; college_name: string };
+type Program = { program_id: number; program_name: string };
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 const C = {
@@ -45,7 +49,57 @@ export default function StudentSignupScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // College / Program data + selection
+  const [colleges, setColleges] = useState<College[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [selectedCollege, setSelectedCollege] = useState<College | null>(null);
+  const [selectedProgram, setSelectedProgram] = useState<Program | null>(null);
+  const [collegesLoading, setCollegesLoading] = useState(true);
+  const [programsLoading, setProgramsLoading] = useState(false);
+
+  const [collegeModalVisible, setCollegeModalVisible] = useState(false);
+  const [programModalVisible, setProgramModalVisible] = useState(false);
+
   const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  // ── Fetch colleges on mount ──────────────────────────────────────────────
+  useEffect(() => {
+    async function fetchColleges() {
+      try {
+        const response = await fetch(COLLEGES_URL);
+        const data = await response.json();
+        // colleges.php returns a plain array, not { success, colleges }
+        setColleges(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        console.log('COLLEGES ERROR:', err);
+        setError('Could not connect to server to load colleges.');
+      } finally {
+        setCollegesLoading(false);
+      }
+    }
+    fetchColleges();
+  }, []);
+
+  // ── Fetch programs whenever selected college changes ────────────────────
+  async function handleSelectCollege(college: College) {
+    setSelectedCollege(college);
+    setSelectedProgram(null);
+    setPrograms([]);
+    setCollegeModalVisible(false);
+    setProgramsLoading(true);
+
+    try {
+      const response = await fetch(`${PROGRAMS_URL}?college_id=${college.college_id}`);
+      const data = await response.json();
+      // programs.php returns a plain array, not { success, programs }
+      setPrograms(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.log('PROGRAMS ERROR:', err);
+      setError('Could not connect to server to load programs.');
+    } finally {
+      setProgramsLoading(false);
+    }
+  }
 
   async function handleSignUp() {
     setError('');
@@ -53,6 +107,8 @@ export default function StudentSignupScreen() {
     if (!firstName.trim()) return setError('Please enter your first name.');
     if (!lastName.trim()) return setError('Please enter your last name.');
     if (!srCode.trim()) return setError('Please enter your SR-Code.');
+    if (!selectedCollege) return setError('Please select a college.');
+    if (!selectedProgram) return setError('Please select a program.');
     if (!password) return setError('Please enter a password.');
     if (password.length < 8) return setError('Password must be at least 8 characters.');
     if (password !== confirmPassword) return setError('Passwords do not match.');
@@ -60,20 +116,24 @@ export default function StudentSignupScreen() {
     setLoading(true);
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(REGISTER_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          srCode: srCode.trim(),
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          sr_code: srCode.trim(),
+          college_id: selectedCollege.college_id,
+          program_id: selectedProgram.program_id,
           password,
         }),
       });
 
-      const result = await response.json();
+      const text = await response.text();
+      console.log(text);
+      const result = JSON.parse(text);
 
-      if (!response.ok || !result.success) {
+      if (!result.success) {
         throw new Error(result.message || 'Registration failed.');
       }
 
@@ -125,7 +185,6 @@ export default function StudentSignupScreen() {
         <Text style={styles.subheading}>
           Fill in your details to register as a student.
         </Text>
-        <Text style={styles.debugText}>API URL: {API_URL}</Text>
 
         {/* ── Error banner ────────────────────────────────────────── */}
         {error ? (
@@ -182,6 +241,50 @@ export default function StudentSignupScreen() {
               returnKeyType="next"
               {...field('srCode')}
             />
+          </View>
+
+          {/* College Selection */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>College</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.selectInput, focusedField === 'college' && styles.inputFocused]}
+              onPress={() => setCollegeModalVisible(true)}
+              activeOpacity={0.7}
+              disabled={collegesLoading}
+            >
+              <Text style={[styles.selectText, !selectedCollege && styles.placeholderText]}>
+                {collegesLoading
+                  ? 'Loading colleges...'
+                  : selectedCollege?.college_name || 'Select your college'}
+              </Text>
+              {collegesLoading ? (
+                <ActivityIndicator size="small" color={C.oliveGreen} />
+              ) : (
+                <Ionicons name="chevron-down" size={20} color={C.textMuted} />
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Program Selection */}
+          <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Program</Text>
+            <TouchableOpacity
+              style={[styles.input, styles.selectInput, focusedField === 'program' && styles.inputFocused]}
+              onPress={() => selectedCollege ? setProgramModalVisible(true) : setError('Please select a college first.')}
+              activeOpacity={0.7}
+              disabled={!selectedCollege || programsLoading}
+            >
+              <Text style={[styles.selectText, !selectedProgram && styles.placeholderText, !selectedCollege && styles.disabledText]}>
+                {programsLoading
+                  ? 'Loading programs...'
+                  : selectedProgram?.program_name || 'Select your program'}
+              </Text>
+              {programsLoading ? (
+                <ActivityIndicator size="small" color={C.oliveGreen} />
+              ) : (
+                <Ionicons name="chevron-down" size={20} color={!selectedCollege ? C.border : C.textMuted} />
+              )}
+            </TouchableOpacity>
           </View>
 
           {/* Password */}
@@ -279,6 +382,85 @@ export default function StudentSignupScreen() {
           © 2026 Batangas State University - TNEU
         </Text>
       </ScrollView>
+
+      {/* ── College Modal ──────────────────────────────────────────── */}
+      <Modal
+        visible={collegeModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCollegeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select College</Text>
+              <TouchableOpacity onPress={() => setCollegeModalVisible(false)} activeOpacity={0.7}>
+                <Ionicons name="close" size={24} color={C.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={colleges}
+              keyExtractor={(item: College) => String(item.college_id)}
+              renderItem={({ item }: { item: College }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => handleSelectCollege(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.modalItemContent}>
+                    <Text style={styles.modalItemText}>{item.college_name}</Text>
+                    {selectedCollege?.college_id === item.college_id && (
+                      <Ionicons name="checkmark" size={20} color={C.darkGreen} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+              scrollEnabled={true}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Program Modal ──────────────────────────────────────────── */}
+      <Modal
+        visible={programModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setProgramModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Program</Text>
+              <TouchableOpacity onPress={() => setProgramModalVisible(false)} activeOpacity={0.7}>
+                <Ionicons name="close" size={24} color={C.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={programs}
+              keyExtractor={(item: Program) => String(item.program_id)}
+              renderItem={({ item }: { item: Program }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setSelectedProgram(item);
+                    setProgramModalVisible(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.modalItemContent}>
+                    <Text style={styles.modalItemText}>{item.program_name}</Text>
+                    {selectedProgram?.program_id === item.program_id && (
+                      <Ionicons name="checkmark" size={20} color={C.darkGreen} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+              scrollEnabled={true}
+            />
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -323,13 +505,6 @@ const styles = StyleSheet.create({
     color: C.textMuted,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 8,
-    paddingHorizontal: 8,
-  },
-  debugText: {
-    fontSize: 12,
-    color: C.oliveGreen,
-    textAlign: 'center',
     marginBottom: 18,
     paddingHorizontal: 8,
   },
@@ -456,5 +631,64 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     color: C.textMuted,
+  },
+  selectInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 10,
+  },
+  selectText: {
+    flex: 1,
+    fontSize: 15,
+    color: C.text,
+  },
+  placeholderText: {
+    color: C.textMuted,
+  },
+  disabledText: {
+    color: C.textMuted,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: C.cream,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingTop: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: C.text,
+  },
+  modalItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  modalItemContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalItemText: {
+    fontSize: 15,
+    color: C.text,
+    flex: 1,
   },
 });
