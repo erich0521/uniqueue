@@ -9,6 +9,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
+
+
 include "db.php";
 
 $college_id = intval($_GET['college_id'] ?? 0);

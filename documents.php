@@ -81,6 +81,8 @@ if (!empty($documentIds)) {
     $placeholders = implode(',', array_fill(0, count($documentIds), '?'));
     $types = str_repeat('i', count($documentIds));
 
+
+    
     $reqSql = "
         SELECT document_id, requirement
         FROM document_requirements
