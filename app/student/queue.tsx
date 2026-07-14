@@ -55,10 +55,11 @@ type QueueTicket = {
   appointment_date: string | null;
   position: number;
   estimated_wait_minutes: number;
+  counter_name?: string | null;
 };
 
 const STATUS_LABELS: Record<TicketStatus, string> = {
-  waiting: 'Waiting',
+  waiting: 'Waiting in queue',
   called: 'Called — head to the window',
   in_progress: 'Being processed',
   done: 'Completed',
@@ -66,11 +67,11 @@ const STATUS_LABELS: Record<TicketStatus, string> = {
 };
 
 const STATUS_TONES: Record<TicketStatus, { bg: string; fg: string }> = {
-  waiting: { bg: C.warningSoft, fg: C.warning },
-  called: { bg: C.infoSoft, fg: C.info },
-  in_progress: { bg: C.successSoft, fg: C.success },
-  done: { bg: C.successSoft, fg: C.success },
-  cancelled: { bg: '#FBEAEA', fg: C.danger },
+  waiting: { bg: 'rgba(255,255,255,0.16)', fg: C.surface },
+  called: { bg: 'rgba(255,255,255,0.16)', fg: C.surface },
+  in_progress: { bg: 'rgba(255,255,255,0.16)', fg: C.surface },
+  done: { bg: 'rgba(255,255,255,0.16)', fg: C.surface },
+  cancelled: { bg: 'rgba(255,255,255,0.16)', fg: C.surface },
 };
 
 function formatAppointmentDate(dateStr: string | null) {
@@ -84,6 +85,15 @@ function formatAppointmentDate(dateStr: string | null) {
   });
 }
 
+function formatTimeNow() {
+  return new Date().toLocaleTimeString('en-PH', {
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+}
+
 export default function QueueScreen() {
   const insets = useSafeAreaInsets();
   const [student, setStudent] = useState<StudentData | null>(null);
@@ -91,6 +101,7 @@ export default function QueueScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const fetchQueueStatus = useCallback(async (studentId: number) => {
     try {
@@ -105,6 +116,7 @@ export default function QueueScreen() {
       }
 
       setTicket(data.in_queue ? data.queue : null);
+      setLastUpdated(formatTimeNow());
     } catch (err) {
       console.log('QUEUE STATUS FETCH ERROR:', err);
       setErrorMsg('Could not reach the server. Check your connection and try again.');
@@ -144,6 +156,18 @@ export default function QueueScreen() {
     loadEverything();
   }, [loadEverything]);
 
+  const handleLeaveFeedback = useCallback(() => {
+    if (!ticket) return;
+    router.push({
+      pathname: '/student/feedback',
+      params: {
+        ticket_id: ticket.id,
+        queue_number: ticket.queue_number,
+        office_name: ticket.office_name,
+      },
+    } as any);
+  }, [ticket]);
+
   return (
     <ScrollView
       style={styles.container}
@@ -158,7 +182,7 @@ export default function QueueScreen() {
         />
       }
     >
-      <View style={[styles.header, { paddingTop: insets.top + 18 }]}>
+      <View style={[styles.topHeader, { paddingTop: insets.top + 18 }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
@@ -202,39 +226,39 @@ export default function QueueScreen() {
           </View>
         ) : (
           <View style={styles.card}>
-            <View style={styles.cardTop}>
-              <View style={styles.badgeRow}>
+            {/* Office banner — mirrors the office's status bar */}
+            <View style={styles.banner}>
+              <Text style={styles.bannerOfficeName}>{ticket.office_name}</Text>
+              <View
+                style={[
+                  styles.statusPill,
+                  { backgroundColor: STATUS_TONES[ticket.status].bg },
+                ]}
+              >
                 <View
                   style={[
-                    styles.statusPill,
-                    { backgroundColor: STATUS_TONES[ticket.status].bg },
+                    styles.statusDot,
+                    { backgroundColor: STATUS_TONES[ticket.status].fg },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusPillText,
+                    { color: STATUS_TONES[ticket.status].fg },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.statusDot,
-                      { backgroundColor: STATUS_TONES[ticket.status].fg },
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.statusPillText,
-                      { color: STATUS_TONES[ticket.status].fg },
-                    ]}
-                  >
-                    {STATUS_LABELS[ticket.status]}
-                  </Text>
-                </View>
-
-                {ticket.priority && (
-                  <View style={styles.priorityPill}>
-                    <Ionicons name="star" size={11} color={C.warning} />
-                    <Text style={styles.priorityPillText}>Priority</Text>
-                  </View>
-                )}
+                  {STATUS_LABELS[ticket.status]}
+                </Text>
               </View>
+            </View>
 
-              <Text style={styles.officeName}>{ticket.office_name}</Text>
+            <View style={styles.cardInner}>
+              {ticket.priority && (
+                <View style={styles.priorityPill}>
+                  <Ionicons name="star" size={11} color={C.warning} />
+                  <Text style={styles.priorityPillText}>Priority</Text>
+                </View>
+              )}
 
               <View style={styles.metaRow}>
                 <Ionicons
@@ -249,39 +273,85 @@ export default function QueueScreen() {
                     : ''}
                 </Text>
               </View>
+
+              {/* Highlighted ticket number box */}
+              <View style={styles.ticketBox}>
+                <Text style={styles.ticketLabel}>YOUR TICKET NUMBER</Text>
+                <Text style={styles.ticketNumber}>{ticket.queue_number}</Text>
+              </View>
+
+              {/* Stat grid: people ahead / wait / counter */}
+              <View style={styles.statGrid}>
+                <View style={styles.statCell}>
+                  <Text style={styles.statLabel}>PEOPLE AHEAD</Text>
+                  <Text style={styles.statValue}>
+                    {Math.max(ticket.position - 1, 0)}
+                  </Text>
+                </View>
+                <View style={styles.statCell}>
+                  <Text style={styles.statLabel}>ESTIMATED WAIT</Text>
+                  <Text style={styles.statValue}>
+                    {ticket.status === 'waiting'
+                      ? `~${ticket.estimated_wait_minutes}m`
+                      : '—'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.counterCell}>
+                <Text style={styles.statLabel}>ASSIGNED COUNTER</Text>
+                <Text
+                  style={[
+                    styles.statValue,
+                    !ticket.counter_name && styles.statValueMuted,
+                  ]}
+                >
+                  {ticket.counter_name || 'Unassigned'}
+                </Text>
+              </View>
+
+              {ticket.status === 'called' && (
+                <View style={styles.calledBanner}>
+                  <Ionicons name="megaphone-outline" size={16} color={C.info} />
+                  <Text style={styles.calledBannerText}>
+                    It's your turn — please proceed to the window.
+                  </Text>
+                </View>
+              )}
+
+              {ticket.status === 'done' && (
+                <TouchableOpacity
+                  style={styles.feedbackButton}
+                  activeOpacity={0.85}
+                  onPress={handleLeaveFeedback}
+                >
+                  <Ionicons name="star-outline" size={15} color={C.surface} />
+                  <Text style={styles.feedbackButtonText}>Leave Feedback</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            <View style={styles.numberRow}>
-              <View style={styles.numberBlock}>
-                <Text style={styles.numberLabel}>TICKET NO.</Text>
-                <Text style={styles.numberValue}>{ticket.queue_number}</Text>
-              </View>
-              <View style={styles.numberDivider} />
-              <View style={styles.numberBlock}>
-                <Text style={styles.numberLabel}>PEOPLE AHEAD</Text>
-                <Text style={styles.numberValue}>
-                  {Math.max(ticket.position - 1, 0)}
-                </Text>
-              </View>
+            {/* Footer: last updated + manual refresh */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                {lastUpdated ? `Last updated: ${lastUpdated}` : ' '}
+              </Text>
+              <TouchableOpacity
+                style={styles.refreshBtn}
+                onPress={handleRefresh}
+                activeOpacity={0.8}
+                disabled={refreshing}
+              >
+                {refreshing ? (
+                  <ActivityIndicator size="small" color={C.primary} />
+                ) : (
+                  <>
+                    <Ionicons name="refresh" size={13} color={C.primary} />
+                    <Text style={styles.refreshBtnText}>Refresh Now</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
-
-            {ticket.status === 'waiting' && (
-              <View style={styles.waitRow}>
-                <Ionicons name="hourglass-outline" size={16} color={C.textMuted} />
-                <Text style={styles.waitText}>
-                  Estimated wait: ~{ticket.estimated_wait_minutes} min
-                </Text>
-              </View>
-            )}
-
-            {ticket.status === 'called' && (
-              <View style={styles.waitRow}>
-                <Ionicons name="megaphone-outline" size={16} color={C.info} />
-                <Text style={[styles.waitText, { color: C.info, fontWeight: '600' }]}>
-                  It's your turn — please proceed to the window.
-                </Text>
-              </View>
-            )}
           </View>
         )}
       </View>
@@ -295,7 +365,7 @@ const styles = StyleSheet.create({
     backgroundColor: C.background,
   },
 
-  header: {
+  topHeader: {
     backgroundColor: C.primaryDark,
     paddingHorizontal: 20,
     paddingBottom: 26,
@@ -314,13 +384,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: C.surface,
-  },
-  heading: {
-    fontSize: 23,
-    fontWeight: '700',
-    color: C.surface,
-    letterSpacing: -0.3,
-    marginBottom: 8,
   },
   headerDescription: {
     fontSize: 13,
@@ -377,32 +440,38 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: C.surface,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: C.border,
-    shadowColor: C.shadow,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 2,
+    overflow: 'hidden',
+    shadowColor: C.primaryDark,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
   },
-  cardTop: {
-    marginBottom: 18,
-  },
-  badgeRow: {
+
+  // Office banner strip (mirrors the reference's red top bar)
+  banner: {
+    backgroundColor: C.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+  },
+  bannerOfficeName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: C.surface,
+    letterSpacing: -0.2,
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    alignSelf: 'flex-start',
     paddingHorizontal: 9,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 10,
   },
   statusDot: {
@@ -411,9 +480,15 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   statusPillText: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
+
+  cardInner: {
+    padding: 20,
+  },
+
   priorityPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -423,22 +498,18 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 10,
     backgroundColor: C.warningSoft,
+    marginBottom: 10,
   },
   priorityPillText: {
     fontSize: 10.5,
     fontWeight: '700',
     color: C.warning,
   },
-  officeName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: C.text,
-    marginBottom: 6,
-  },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginBottom: 16,
   },
   metaText: {
     fontSize: 12.5,
@@ -446,44 +517,125 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  numberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: C.background,
+  ticketBox: {
+    backgroundColor: C.primarySoft,
     borderRadius: 16,
-    paddingVertical: 16,
-    marginBottom: 16,
+    paddingVertical: 18,
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  numberBlock: {
+  ticketLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.primary,
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  ticketNumber: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: C.primaryDark,
+    letterSpacing: -0.5,
+  },
+
+  statGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  statCell: {
     flex: 1,
+    backgroundColor: C.background,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  numberDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: C.border,
+  counterCell: {
+    backgroundColor: C.background,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 4,
   },
-  numberLabel: {
+  statLabel: {
     fontSize: 9.5,
     fontWeight: '700',
     color: C.muted,
     letterSpacing: 0.5,
-    marginBottom: 4,
+    marginBottom: 5,
   },
-  numberValue: {
-    fontSize: 22,
+  statValue: {
+    fontSize: 18,
     fontWeight: '800',
     color: C.primaryDark,
   },
+  statValueMuted: {
+    color: C.muted,
+    fontWeight: '600',
+    fontSize: 14,
+  },
 
-  waitRow: {
+  calledBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: C.infoSoft,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 8,
   },
-  waitText: {
+  calledBannerText: {
     fontSize: 12.5,
-    color: C.textMuted,
+    color: C.info,
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+
+  feedbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: C.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 10,
+  },
+  feedbackButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.surface,
+  },
+
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: C.border,
+    backgroundColor: C.background,
+  },
+  footerText: {
+    fontSize: 11,
+    color: C.muted,
     fontWeight: '500',
+  },
+  refreshBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.primary,
+  },
+  refreshBtnText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: C.primary,
   },
 });

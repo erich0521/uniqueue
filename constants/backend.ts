@@ -22,6 +22,9 @@ export const QUEUE_STATUS_URL = `${API_BASE_URL}/queue_status.php`;
 export const DOCUMENTS_URL = `${API_BASE_URL}/documents.php`;
 export const REQUEST_DOCUMENT_URL = `${API_BASE_URL}/request_document.php`;
 export const UPDATE_PROFILE_URL = `${API_BASE_URL}/update_profile.php`;
+export const SUBMIT_FEEDBACK_URL = `${API_BASE_URL}/submit_feedback.php`;
+
+
 
 console.log('[UniQueue] BACKEND_HOST:', BACKEND_HOST);
 console.log('[UniQueue] REGISTER_URL:', REGISTER_URL);
