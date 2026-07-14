@@ -19,7 +19,21 @@ git add .
 git commit -m "Your commit message"
 git push -u origin feature/...
 
+(existing branch pushing)
+# 1. Tingnan kung nasa tamang branch ka
+git branch
 
+# 2. Tingnan ang mga nabago
+git status
+
+# 3. I-stage ang changes
+git add .
+
+# 4. Gumawa ng commit
+git commit -m "Update login page styling"
+
+# 5. I-push ang changes sa existing branch
+git push
 
 # branch
 git checkout -b your-branch-name
