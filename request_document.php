@@ -1,22 +1,4 @@
 <?php
-// request_document.php
-// Creates a new queue ticket for one or more requested documents (same office).
-//
-// Usage: POST /uniqueue_api/request_document.php
-// Body (JSON):
-// {
-//   "student_id": 2,
-//   "type": "walkin" | "appointment",
-//   "appointment_date": "2026-07-20" | null,
-//   "documents": [ { "document_id": 2, "quantity": 1 }, ... ]
-// }
-//
-// Matches the actual `uniqueue` schema:
-//   queue_tickets(id, student_id, office_id, window_id, queue_number, type, status,
-//                  priority, priority_reason, appointment_date, notified_at_3,
-//                  notified_at_called, joined_at, called_at, done_at, created_at, updated_at)
-//   queue_ticket_document(id, ticket_id, document_id, quantity)
-//   documents(id, name, office_id, ...)
 
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
