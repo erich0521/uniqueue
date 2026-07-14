@@ -4,14 +4,14 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+  Image,
+  KeyboardAvoidingView, Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LOGIN_URL } from '../../constants/backend';
@@ -99,127 +99,123 @@ export default function StudentLoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Back button ─────────────────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.back}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={18} color={C.oliveGreen} />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-
-        {/* ── Icon badge ──────────────────────────────────────────── */}
-        <View style={styles.iconBadge}>
-          <Ionicons name="school" size={32} color={C.oliveGreen} />
-        </View>
-
-        {/* ── Heading ─────────────────────────────────────────────── */}
-        <Text style={styles.heading}>Student Sign In</Text>
-        <Text style={styles.subheading}>
-          Enter your SR-Code and password to access your portal.
-        </Text>
-
-        {/* ── Error banner ────────────────────────────────────────── */}
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Ionicons name="warning-outline" size={14} color={C.error} style={{ marginTop: 2 }} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        {/* ── Form ────────────────────────────────────────────────── */}
-        <View style={styles.form}>
-          {/* SR-Code */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>SR-Code</Text>
-            <TextInput
-              style={[styles.input, srFocused && styles.inputFocused]}
-              placeholder="e.g. 21-12345"
-              placeholderTextColor={C.textMuted}
-              value={srCode}
-              onChangeText={setSrCode}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="default"
-              returnKeyType="next"
-              onFocus={() => setSrFocused(true)}
-              onBlur={() => setSrFocused(false)}
+        <View style={styles.card}>
+          {/* ── Logo badge ──────────────────────────────────────────── */}
+          <View style={styles.iconBadge}>
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.iconLogo}
+              resizeMode="contain"
             />
           </View>
 
-          {/* Password */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={[styles.passwordRow, pwFocused && styles.inputFocused]}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Enter your password"
-                placeholderTextColor={C.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-                onFocus={() => setPwFocused(true)}
-                onBlur={() => setPwFocused(false)}
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword((v) => !v)}
-                activeOpacity={0.7}
-                style={styles.eyeBtn}
-              >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={C.textMuted}
-                />
-              </TouchableOpacity>
+          {/* ── Heading ─────────────────────────────────────────────── */}
+          <Text style={styles.heading}>Student Sign In</Text>
+          <Text style={styles.subheading}>
+            Enter your SR-Code and password to access your portal.
+          </Text>
+
+          {/* ── Error banner ────────────────────────────────────────── */}
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="warning-outline" size={14} color={C.error} style={{ marginTop: 2 }} />
+              <Text style={styles.errorText}>{error}</Text>
             </View>
+          ) : null}
+
+          {/* ── Form ────────────────────────────────────────────────── */}
+          <View style={styles.form}>
+            {/* SR-Code */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>SR-Code</Text>
+              <TextInput
+                style={[styles.input, srFocused && styles.inputFocused]}
+                placeholder="e.g. 21-12345"
+                placeholderTextColor={C.textMuted}
+                value={srCode}
+                onChangeText={setSrCode}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="default"
+                returnKeyType="next"
+                onFocus={() => setSrFocused(true)}
+                onBlur={() => setSrFocused(false)}
+              />
+            </View>
+
+            {/* Password */}
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={[styles.passwordRow, pwFocused && styles.inputFocused]}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Enter your password"
+                  placeholderTextColor={C.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  onFocus={() => setPwFocused(true)}
+                  onBlur={() => setPwFocused(false)}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((v) => !v)}
+                  activeOpacity={0.7}
+                  style={styles.eyeBtn}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={C.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Forgot password */}
+            <TouchableOpacity
+              style={styles.forgotBtn}
+              activeOpacity={0.7}
+              onPress={() => {
+                /* TODO: forgot password route */
+              }}
+            >
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
+
+            {/* Login button */}
+            <TouchableOpacity
+              style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
+              activeOpacity={0.8}
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={C.white} />
+              ) : (
+                <Text style={styles.loginBtnText}>SIGN IN</Text>
+              )}
+            </TouchableOpacity>
           </View>
 
-          {/* Forgot password */}
-          <TouchableOpacity
-            style={styles.forgotBtn}
-            activeOpacity={0.7}
-            onPress={() => {
-              /* TODO: forgot password route */
-            }}
-          >
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
+          {/* ── Divider ─────────────────────────────────────────────── */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerLabel}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-          {/* Login button */}
-          <TouchableOpacity
-            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
-            activeOpacity={0.8}
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={C.white} />
-            ) : (
-              <Text style={styles.loginBtnText}>SIGN IN</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Divider ─────────────────────────────────────────────── */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerLabel}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* ── Sign Up ─────────────────────────────────────────────── */}
-        <View style={styles.signUpRow}>
-          <Text style={styles.signUpPrompt}>Don't have an account? </Text>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => router.push('/login/student-signup' as any)}
-          >
-            <Text style={styles.signUpLink}>Sign Up</Text>
-          </TouchableOpacity>
+          {/* ── Sign Up ─────────────────────────────────────────────── */}
+          <View style={styles.signUpRow}>
+            <Text style={styles.signUpPrompt}>Don't have an account? </Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/login/student-signup' as any)}
+            >
+              <Text style={styles.signUpLink}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Footer ──────────────────────────────────────────────── */}
@@ -237,17 +233,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     backgroundColor: C.cream,
   },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 32,
-    alignSelf: 'flex-start',
-  },
-  backText: {
-    fontSize: 14,
-    color: C.oliveGreen,
-    fontWeight: '600',
+  card: {
+    backgroundColor: C.white,
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 30,
+    paddingBottom: 24,
+    marginTop: 75,
+    marginBottom: 18,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
   iconBadge: {
     width: 72,
@@ -256,8 +254,13 @@ const styles = StyleSheet.create({
     backgroundColor: C.iconBg,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 8,
     marginBottom: 20,
     alignSelf: 'center',
+  },
+  iconLogo: {
+    width: 40,
+    height: 40,
   },
   heading: {
     fontSize: 26,
@@ -402,5 +405,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     color: C.textMuted,
+    marginTop: 120,
+    marginBottom: 8,
   },
 });

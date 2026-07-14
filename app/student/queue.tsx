@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -159,7 +159,14 @@ export default function QueueScreen() {
       }
     >
       <View style={[styles.header, { paddingTop: insets.top + 18 }]}>
-        <Text style={styles.heading}>Queue Status</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chevron-back" size={20} color={C.surface} />
+          <Text style={styles.backButtonText}>Back</Text>
+        </TouchableOpacity>
         <Text style={styles.headerDescription}>
           Track your current position and estimated wait time in real time.
         </Text>
@@ -294,6 +301,19 @@ const styles = StyleSheet.create({
     paddingBottom: 26,
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+    paddingVertical: 4,
+    gap: 6,
+  },
+  backButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: C.surface,
   },
   heading: {
     fontSize: 23,

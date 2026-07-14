@@ -51,6 +51,8 @@ type SelectedMap = Record<number, number>; // document_id -> quantity
 
 type RequestType = 'walkin' | 'appointment';
 
+const STEP_LABELS = ['Type', 'Details', 'Requirements', 'Confirm'];
+
 export default function RequestDocumentsScreen() {
   const insets = useSafeAreaInsets();
   const [student, setStudent] = useState<StudentData | null>(null);
@@ -58,9 +60,13 @@ export default function RequestDocumentsScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [selected, setSelected] = useState<SelectedMap>({});
-  const [requestType, setRequestType] = useState<RequestType>('walkin');
+  const [requestType, setRequestType] = useState<RequestType | null>(null);
   const [appointmentDate, setAppointmentDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // ── Wizard state ──
+  const [currentStep, setCurrentStep] = useState(1); // 1-4
+  const [requirementsConfirmed, setRequirementsConfirmed] = useState(false);
 
   useEffect(() => {
     async function init() {
@@ -115,6 +121,7 @@ export default function RequestDocumentsScreen() {
         next[doc.id] = 1;
         return next;
       });
+      setRequirementsConfirmed(false);
     },
     [selectedOfficeId]
   );
@@ -128,6 +135,70 @@ export default function RequestDocumentsScreen() {
   }, []);
 
   const selectedCount = Object.keys(selected).length;
+
+  const selectedDocs = useMemo(
+    () => documents.filter((d) => selected[d.id]),
+    [documents, selected]
+  );
+
+  // Combined, de-duplicated requirements across all selected documents
+  const combinedRequirements = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { docName: string; req: string }[] = [];
+    selectedDocs.forEach((doc) => {
+      doc.requirements.forEach((req) => {
+        const key = `${doc.id}:${req}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({ docName: doc.name, req });
+        }
+      });
+    });
+    return list;
+  }, [selectedDocs]);
+
+  // ── Step validation ──
+  const canGoNext = useCallback(() => {
+    if (currentStep === 1) return requestType !== null;
+
+    if (currentStep === 2) {
+      if (selectedCount === 0) return false;
+      if (requestType === 'appointment') {
+        return /^\d{4}-\d{2}-\d{2}$/.test(appointmentDate);
+      }
+      return true;
+    }
+
+    if (currentStep === 3) return requirementsConfirmed;
+
+    return true;
+  }, [currentStep, requestType, selectedCount, appointmentDate, requirementsConfirmed]);
+
+  const goNext = useCallback(() => {
+    if (!canGoNext()) {
+      if (currentStep === 1) {
+        Alert.alert('Choose a type', 'Please select Walk-in or Appointment to continue.');
+      } else if (currentStep === 2) {
+        if (selectedCount === 0) {
+          Alert.alert('No documents selected', 'Please select at least one document to request.');
+        } else {
+          Alert.alert('Invalid date', 'Please enter the appointment date as YYYY-MM-DD.');
+        }
+      } else if (currentStep === 3) {
+        Alert.alert('Please confirm', 'Confirm that you have the requirements ready.');
+      }
+      return;
+    }
+    setCurrentStep((s) => Math.min(4, s + 1));
+  }, [canGoNext, currentStep, selectedCount]);
+
+  const goBack = useCallback(() => {
+    if (currentStep === 1) {
+      router.back();
+    } else {
+      setCurrentStep((s) => Math.max(1, s - 1));
+    }
+  }, [currentStep]);
 
   const handleSubmit = useCallback(async () => {
     if (!student?.id) {
@@ -190,16 +261,12 @@ export default function RequestDocumentsScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={[styles.header, { paddingTop: insets.top + 18 }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          activeOpacity={0.75}
-        >
+        <TouchableOpacity onPress={goBack} style={styles.backBtn} activeOpacity={0.75}>
           <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.heading}>Request Documents</Text>
         <Text style={styles.headerDescription}>
-          Choose the documents you need, then submit to join the queue.
+          Follow the steps below to join the queue.
         </Text>
       </View>
 
@@ -220,162 +287,285 @@ export default function RequestDocumentsScreen() {
           </View>
         ) : (
           <>
-            <Text style={styles.sectionTitle}>Available documents</Text>
-
-            {documents.map((doc) => {
-              const isSelected = Boolean(selected[doc.id]);
-              const quantity = selected[doc.id] ?? 1;
-
-              return (
-                <TouchableOpacity
-                  key={doc.id}
-                  style={[styles.docCard, isSelected && styles.docCardSelected]}
-                  activeOpacity={0.85}
-                  onPress={() => toggleDocument(doc)}
-                >
-                  <View style={styles.docCardTop}>
-                    <View
-                      style={[styles.checkbox, isSelected && styles.checkboxChecked]}
-                    >
-                      {isSelected && (
-                        <Ionicons name="checkmark" size={13} color="#FFFFFF" />
-                      )}
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.docName}>{doc.name}</Text>
-                      <Text style={styles.docOffice}>{doc.office_name}</Text>
-                    </View>
-
-                    {doc.processing_time !== null && (
-                      <View style={styles.processingPill}>
-                        <Ionicons name="time-outline" size={11} color={C.warning} />
-                        <Text style={styles.processingText}>~{doc.processing_time}m</Text>
+            {/* ── STEP PROGRESS ── */}
+            <View style={styles.progressRow}>
+              {STEP_LABELS.map((label, i) => {
+                const stepNum = i + 1;
+                const isCurrent = stepNum === currentStep;
+                const isDone = stepNum < currentStep;
+                return (
+                  <React.Fragment key={label}>
+                    <View style={styles.progressStep}>
+                      <View
+                        style={[
+                          styles.progressDot,
+                          isCurrent && styles.progressDotActive,
+                          isDone && styles.progressDotDone,
+                        ]}
+                      >
+                        {isDone ? (
+                          <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                        ) : (
+                          <Text
+                            style={[
+                              styles.progressDotText,
+                              isCurrent && styles.progressDotTextActive,
+                            ]}
+                          >
+                            {stepNum}
+                          </Text>
+                        )}
                       </View>
-                    )}
-                  </View>
-
-                  {doc.requirements.length > 0 && (
-                    <View style={styles.requirementsBox}>
-                      <Text style={styles.requirementsLabel}>Requirements:</Text>
-                      {doc.requirements.map((req, i) => (
-                        <Text key={i} style={styles.requirementItem}>
-                          • {req}
-                        </Text>
-                      ))}
+                      <Text
+                        style={[styles.progressLabel, isCurrent && styles.progressLabelActive]}
+                        numberOfLines={1}
+                      >
+                        {label}
+                      </Text>
                     </View>
-                  )}
-
-                  {isSelected && (
-                    <View style={styles.qtyRow}>
-                      <Text style={styles.qtyLabel}>Quantity</Text>
-                      <View style={styles.qtyControls}>
-                        <TouchableOpacity
-                          style={styles.qtyBtn}
-                          onPress={() => changeQuantity(doc.id, -1)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="remove" size={15} color={C.primary} />
-                        </TouchableOpacity>
-                        <Text style={styles.qtyValue}>{quantity}</Text>
-                        <TouchableOpacity
-                          style={styles.qtyBtn}
-                          onPress={() => changeQuantity(doc.id, 1)}
-                          activeOpacity={0.7}
-                        >
-                          <Ionicons name="add" size={15} color={C.primary} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-
-            <Text style={styles.sectionTitle}>How would you like to proceed?</Text>
-
-            <View style={styles.typeToggleRow}>
-              <TouchableOpacity
-                style={[
-                  styles.typeOption,
-                  requestType === 'walkin' && styles.typeOptionActive,
-                ]}
-                onPress={() => setRequestType('walkin')}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="walk-outline"
-                  size={16}
-                  color={requestType === 'walkin' ? '#FFFFFF' : C.primary}
-                />
-                <Text
-                  style={[
-                    styles.typeOptionText,
-                    requestType === 'walkin' && styles.typeOptionTextActive,
-                  ]}
-                >
-                  Walk-in today
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.typeOption,
-                  requestType === 'appointment' && styles.typeOptionActive,
-                ]}
-                onPress={() => setRequestType('appointment')}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={16}
-                  color={requestType === 'appointment' ? '#FFFFFF' : C.primary}
-                />
-                <Text
-                  style={[
-                    styles.typeOptionText,
-                    requestType === 'appointment' && styles.typeOptionTextActive,
-                  ]}
-                >
-                  Schedule appointment
-                </Text>
-              </TouchableOpacity>
+                    {i < STEP_LABELS.length - 1 && <View style={styles.progressConnector} />}
+                  </React.Fragment>
+                );
+              })}
             </View>
 
-            {requestType === 'appointment' && (
-              <View style={styles.dateInputBox}>
-                <Text style={styles.dateInputLabel}>Appointment date (YYYY-MM-DD)</Text>
-                <TextInput
-                  style={styles.dateInput}
-                  placeholder="2026-07-20"
-                  placeholderTextColor={C.muted}
-                  value={appointmentDate}
-                  onChangeText={setAppointmentDate}
-                  keyboardType="numbers-and-punctuation"
-                />
+            {/* ── STEP 1: TYPE ── */}
+            {currentStep === 1 && (
+              <View>
+                <Text style={styles.stepTitle}>Choose Your Queue Type</Text>
+                <Text style={styles.stepSubtitle}>
+                  How would you like to transact today?
+                </Text>
+
+                <TouchableOpacity
+                  style={[styles.typeCard, requestType === 'walkin' && styles.typeCardActive]}
+                  onPress={() => setRequestType('walkin')}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.typeCardIcon}>
+                    <Ionicons name="walk-outline" size={24} color={C.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.typeCardTitle}>Walk-in</Text>
+                    <Text style={styles.typeCardDesc}>Join the queue now and transact today</Text>
+                  </View>
+                  {requestType === 'walkin' && (
+                    <Ionicons name="checkmark-circle" size={22} color={C.primary} />
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.typeCard, requestType === 'appointment' && styles.typeCardActive]}
+                  onPress={() => setRequestType('appointment')}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.typeCardIcon}>
+                    <Ionicons name="calendar-outline" size={24} color={C.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.typeCardTitle}>Appointment</Text>
+                    <Text style={styles.typeCardDesc}>Schedule a visit for a future date</Text>
+                  </View>
+                  {requestType === 'appointment' && (
+                    <Ionicons name="checkmark-circle" size={22} color={C.primary} />
+                  )}
+                </TouchableOpacity>
               </View>
             )}
 
-            <TouchableOpacity
-              style={[
-                styles.submitBtn,
-                (selectedCount === 0 || submitting) && styles.submitBtnDisabled,
-              ]}
-              onPress={handleSubmit}
-              activeOpacity={0.85}
-              disabled={selectedCount === 0 || submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="paper-plane-outline" size={17} color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>
-                    Submit request {selectedCount > 0 ? `(${selectedCount})` : ''}
+            {/* ── STEP 2: DETAILS (original document + quantity picker, as is) ── */}
+            {currentStep === 2 && (
+              <View>
+                <Text style={styles.sectionTitle}>Available documents</Text>
+
+                {documents.map((doc) => {
+                  const isSelected = Boolean(selected[doc.id]);
+                  const quantity = selected[doc.id] ?? 1;
+
+                  return (
+                    <TouchableOpacity
+                      key={doc.id}
+                      style={[styles.docCard, isSelected && styles.docCardSelected]}
+                      activeOpacity={0.85}
+                      onPress={() => toggleDocument(doc)}
+                    >
+                      <View style={styles.docCardTop}>
+                        <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                          {isSelected && <Ionicons name="checkmark" size={13} color="#FFFFFF" />}
+                        </View>
+
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.docName}>{doc.name}</Text>
+                          <Text style={styles.docOffice}>{doc.office_name}</Text>
+                        </View>
+
+                        {doc.processing_time !== null && (
+                          <View style={styles.processingPill}>
+                            <Ionicons name="time-outline" size={11} color={C.warning} />
+                            <Text style={styles.processingText}>~{doc.processing_time}m</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {doc.requirements.length > 0 && (
+                        <View style={styles.requirementsBox}>
+                          <Text style={styles.requirementsLabel}>Requirements:</Text>
+                          {doc.requirements.map((req, i) => (
+                            <Text key={i} style={styles.requirementItem}>
+                              • {req}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
+
+                      {isSelected && (
+                        <View style={styles.qtyRow}>
+                          <Text style={styles.qtyLabel}>Quantity</Text>
+                          <View style={styles.qtyControls}>
+                            <TouchableOpacity
+                              style={styles.qtyBtn}
+                              onPress={() => changeQuantity(doc.id, -1)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="remove" size={15} color={C.primary} />
+                            </TouchableOpacity>
+                            <Text style={styles.qtyValue}>{quantity}</Text>
+                            <TouchableOpacity
+                              style={styles.qtyBtn}
+                              onPress={() => changeQuantity(doc.id, 1)}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons name="add" size={15} color={C.primary} />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {requestType === 'appointment' && (
+                  <View style={styles.dateInputBox}>
+                    <Text style={styles.dateInputLabel}>Appointment date (YYYY-MM-DD)</Text>
+                    <TextInput
+                      style={styles.dateInput}
+                      placeholder="2026-07-20"
+                      placeholderTextColor={C.muted}
+                      value={appointmentDate}
+                      onChangeText={setAppointmentDate}
+                      keyboardType="numbers-and-punctuation"
+                    />
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ── STEP 3: REQUIREMENTS ── */}
+            {currentStep === 3 && (
+              <View>
+                <Text style={styles.stepTitle}>Requirements</Text>
+                <Text style={styles.stepSubtitle}>
+                  Please confirm you have the following ready.
+                </Text>
+
+                <View style={styles.requirementsCard}>
+                  {combinedRequirements.length > 0 ? (
+                    combinedRequirements.map((item, i) => (
+                      <View key={i} style={styles.requirementRow}>
+                        <Ionicons name="document-text-outline" size={15} color={C.primary} />
+                        <Text style={styles.requirementRowText}>
+                          {item.req}{' '}
+                          <Text style={styles.requirementRowDoc}>({item.docName})</Text>
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.centerStateText}>
+                      No specific requirements listed for your selected documents.
+                    </Text>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.confirmCheckRow}
+                  activeOpacity={0.8}
+                  onPress={() => setRequirementsConfirmed((v) => !v)}
+                >
+                  <View style={[styles.checkbox, requirementsConfirmed && styles.checkboxChecked]}>
+                    {requirementsConfirmed && (
+                      <Ionicons name="checkmark" size={13} color="#FFFFFF" />
+                    )}
+                  </View>
+                  <Text style={styles.confirmCheckText}>
+                    I have the requirements above ready with me.
                   </Text>
-                </>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* ── STEP 4: CONFIRM ── */}
+            {currentStep === 4 && (
+              <View>
+                <Text style={styles.stepTitle}>Review & Confirm</Text>
+                <Text style={styles.stepSubtitle}>
+                  Double-check your details before joining the queue.
+                </Text>
+
+                <View style={styles.confirmCard}>
+                  <View style={styles.confirmRow}>
+                    <Text style={styles.confirmRowLabel}>Queue Type</Text>
+                    <Text style={styles.confirmRowValue}>
+                      {requestType === 'walkin' ? 'Walk-in' : 'Appointment'}
+                    </Text>
+                  </View>
+
+                  {requestType === 'appointment' && (
+                    <View style={styles.confirmRow}>
+                      <Text style={styles.confirmRowLabel}>Date</Text>
+                      <Text style={styles.confirmRowValue}>{appointmentDate}</Text>
+                    </View>
+                  )}
+
+                  {selectedDocs.map((doc) => (
+                    <View key={doc.id} style={styles.confirmRow}>
+                      <Text style={styles.confirmRowLabel}>{doc.name}</Text>
+                      <Text style={styles.confirmRowValue}>Qty: {selected[doc.id]}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* ── STEP NAVIGATION ── */}
+            <View style={styles.navRow}>
+              <TouchableOpacity style={styles.navBtnOutline} onPress={goBack} activeOpacity={0.8}>
+                <Ionicons name="chevron-back" size={16} color={C.primary} />
+                <Text style={styles.navBtnOutlineText}>Back</Text>
+              </TouchableOpacity>
+
+              {currentStep === 4 ? (
+                <TouchableOpacity
+                  style={[styles.navBtnPrimary, submitting && styles.submitBtnDisabled]}
+                  onPress={handleSubmit}
+                  activeOpacity={0.85}
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="paper-plane-outline" size={17} color="#FFFFFF" />
+                      <Text style={styles.navBtnPrimaryText}>Submit request</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.navBtnPrimary} onPress={goNext} activeOpacity={0.85}>
+                  <Text style={styles.navBtnPrimaryText}>Next</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           </>
         )}
       </View>
@@ -404,6 +594,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
+    alignSelf: 'flex-start',
   },
   heading: {
     fontSize: 22,
@@ -438,6 +629,71 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
+  // ── Progress ──
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+  progressStep: {
+    alignItems: 'center',
+    width: 56,
+  },
+  progressConnector: {
+    flex: 1,
+    height: 2,
+    backgroundColor: C.border,
+    marginTop: 13,
+  },
+  progressDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: C.surface,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressDotActive: {
+    borderColor: C.primary,
+  },
+  progressDotDone: {
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+  },
+  progressDotText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.muted,
+  },
+  progressDotTextActive: {
+    color: C.primary,
+  },
+  progressLabel: {
+    fontSize: 9.5,
+    color: C.textMuted,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  progressLabelActive: {
+    color: C.primary,
+    fontWeight: '700',
+  },
+
+  stepTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: C.text,
+    marginBottom: 4,
+  },
+  stepSubtitle: {
+    fontSize: 12.5,
+    color: C.textMuted,
+    marginBottom: 18,
+    lineHeight: 18,
+  },
+
   sectionTitle: {
     fontSize: 14.5,
     fontWeight: '700',
@@ -446,6 +702,43 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
+  // ── Step 1: type cards ──
+  typeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: C.surface,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 12,
+  },
+  typeCardActive: {
+    borderColor: C.primary,
+    borderWidth: 1.5,
+    backgroundColor: C.primarySoft,
+  },
+  typeCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: C.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typeCardTitle: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    color: C.text,
+    marginBottom: 2,
+  },
+  typeCardDesc: {
+    fontSize: 12,
+    color: C.textMuted,
+  },
+
+  // ── Step 2: original document cards ──
   docCard: {
     backgroundColor: C.surface,
     borderRadius: 16,
@@ -562,38 +855,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  typeToggleRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
-  },
-  typeOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.border,
-    backgroundColor: C.surface,
-  },
-  typeOptionActive: {
-    backgroundColor: C.primary,
-    borderColor: C.primary,
-  },
-  typeOptionText: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: C.primary,
-  },
-  typeOptionTextActive: {
-    color: '#FFFFFF',
-  },
-
   dateInputBox: {
-    marginBottom: 18,
+    marginTop: 6,
+    marginBottom: 4,
   },
   dateInputLabel: {
     fontSize: 12,
@@ -612,23 +876,109 @@ const styles = StyleSheet.create({
     color: C.text,
   },
 
-  submitBtn: {
+  // ── Step 3: requirements ──
+  requirementsCard: {
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 16,
+  },
+  requirementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+  },
+  requirementRowText: {
+    fontSize: 12.5,
+    color: C.text,
+    flex: 1,
+  },
+  requirementRowDoc: {
+    fontSize: 11,
+    color: C.textMuted,
+  },
+  confirmCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  confirmCheckText: {
+    fontSize: 12.5,
+    color: C.text,
+    flex: 1,
+  },
+
+  // ── Step 4: confirm ──
+  confirmCard: {
+    backgroundColor: C.surface,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  confirmRowLabel: {
+    fontSize: 12.5,
+    color: C.textMuted,
+    flexShrink: 1,
+  },
+  confirmRowValue: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: C.text,
+    flexShrink: 1,
+    textAlign: 'right',
+    maxWidth: '60%',
+  },
+
+  // ── Nav ──
+  navRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 24,
+  },
+  navBtnOutline: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    backgroundColor: C.surface,
+  },
+  navBtnOutlineText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: C.primary,
+  },
+  navBtnPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: C.primary,
     borderRadius: 16,
-    paddingVertical: 15,
-    marginTop: 4,
-    marginBottom: 8,
+    paddingVertical: 14,
+  },
+  navBtnPrimaryText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   submitBtnDisabled: {
     backgroundColor: C.muted,
-  },
-  submitBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 });

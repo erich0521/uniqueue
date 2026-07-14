@@ -2,8 +2,19 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UPDATE_PROFILE_URL } from '../../constants/backend';
 
 const C = {
   background: '#F4F6F3',
@@ -36,6 +47,11 @@ export default function StudentProfileScreen() {
   const insets = useSafeAreaInsets();
   const [student, setStudent] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editVisible, setEditVisible] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [srCode, setSrCode] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Re-read from storage every time this screen comes into focus,
   // in case the logged-in student changed (e.g. after logout/login).
@@ -67,7 +83,67 @@ export default function StudentProfileScreen() {
 
   async function handleLogout() {
     await AsyncStorage.removeItem('studentData');
-    router.replace('/login/student-login' as any);
+    router.replace('/login/student' as any);
+  }
+
+  function openEditProfile() {
+    if (!student) return;
+
+    setFirstName(student.first_name);
+    setLastName(student.last_name);
+    setSrCode(student.sr_code);
+    setEditVisible(true);
+  }
+
+  async function saveProfile() {
+    if (!student) return;
+
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const trimmedSrCode = srCode.trim();
+
+    if (!trimmedFirstName || !trimmedLastName || !trimmedSrCode) {
+      Alert.alert('Missing details', 'Please complete your first name, last name, and SR-Code.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(UPDATE_PROFILE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: student.id,
+          first_name: trimmedFirstName,
+          last_name: trimmedLastName,
+          sr_code: trimmedSrCode,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        Alert.alert('Unable to save', data.message || 'Please try again.');
+        return;
+      }
+
+      const updatedStudent: StudentData = {
+        ...student,
+        first_name: data.student.first_name,
+        last_name: data.student.last_name,
+        sr_code: data.student.sr_code,
+      };
+
+      await AsyncStorage.setItem('studentData', JSON.stringify(updatedStudent));
+      setStudent(updatedStudent);
+      setEditVisible(false);
+      Alert.alert('Profile updated', 'Your profile details have been saved.');
+    } catch (err) {
+      console.log('PROFILE SAVE ERROR:', err);
+      Alert.alert('Unable to save', 'Please check your connection and try again.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
@@ -173,7 +249,7 @@ export default function StudentProfileScreen() {
         <View style={styles.actionSection}>
           <Text style={styles.sectionLabel}>ACCOUNT</Text>
 
-          <TouchableOpacity style={styles.actionRow} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.actionRow} activeOpacity={0.7} onPress={openEditProfile}>
             <View style={styles.actionLeft}>
               <View style={styles.actionIconBox}>
                 <Ionicons name="create-outline" size={17} color={C.primary} />
@@ -207,6 +283,79 @@ export default function StudentProfileScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal
+        visible={editVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !saving && setEditVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.editModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit profile</Text>
+              <TouchableOpacity
+                onPress={() => setEditVisible(false)}
+                disabled={saving}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={23} color={C.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>First name</Text>
+            <TextInput
+              style={styles.input}
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="Enter your first name"
+              placeholderTextColor={C.muted}
+              autoCapitalize="words"
+              editable={!saving}
+            />
+
+            <Text style={styles.inputLabel}>Last name</Text>
+            <TextInput
+              style={styles.input}
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Enter your last name"
+              placeholderTextColor={C.muted}
+              autoCapitalize="words"
+              editable={!saving}
+            />
+
+            <Text style={styles.inputLabel}>SR-Code</Text>
+            <TextInput
+              style={styles.input}
+              value={srCode}
+              onChangeText={setSrCode}
+              placeholder="Enter your SR-Code"
+              placeholderTextColor={C.muted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              editable={!saving}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setEditVisible(false)}
+                disabled={saving}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                onPress={saveProfile}
+                disabled={saving}
+              >
+                {saving ? <ActivityIndicator color={C.surface} /> : <Text style={styles.saveButtonText}>Save changes</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -369,8 +518,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
   },
-  // Stacked layout for long values (College, Program):
-  // label row on top, value below spanning full width, right-aligned, wraps freely.
   detailRowStacked: {
     paddingVertical: 4,
   },
@@ -442,5 +589,79 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: '600',
     color: C.text,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(15, 42, 24, 0.45)',
+  },
+  editModal: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    padding: 22,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 22,
+  },
+  modalTitle: {
+    color: C.text,
+    fontSize: 19,
+    fontWeight: '700',
+  },
+  inputLabel: {
+    color: C.text,
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 7,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    color: C.text,
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    marginBottom: 16,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  cancelButton: {
+    alignItems: 'center',
+    borderColor: C.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  cancelButtonText: {
+    color: C.textMuted,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  saveButton: {
+    alignItems: 'center',
+    backgroundColor: C.primaryDark,
+    borderRadius: 12,
+    flex: 1.35,
+    justifyContent: 'center',
+    minHeight: 49,
+    paddingHorizontal: 12,
+  },
+  saveButtonDisabled: {
+    opacity: 0.65,
+  },
+  saveButtonText: {
+    color: C.surface,
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

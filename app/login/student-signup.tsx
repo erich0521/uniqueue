@@ -157,15 +157,7 @@ export default function StudentSignupScreen() {
       style={{ flex: 1, backgroundColor: C.cream }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 },
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Back ────────────────────────────────────────────────── */}
+      <View style={[styles.headerBar, { paddingTop: insets.top + 8 }]}> 
         <TouchableOpacity
           style={styles.back}
           onPress={() => router.back()}
@@ -174,207 +166,219 @@ export default function StudentSignupScreen() {
           <Ionicons name="arrow-back" size={18} color={C.oliveGreen} />
           <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
+      </View>
 
-        {/* ── Icon badge ──────────────────────────────────────────── */}
-        <View style={styles.iconBadge}>
-          <Ionicons name="person-add" size={30} color={C.oliveGreen} />
-        </View>
-
-        {/* ── Heading ─────────────────────────────────────────────── */}
-        <Text style={styles.heading}>Create Account</Text>
-        <Text style={styles.subheading}>
-          Fill in your details to register as a student.
-        </Text>
-
-        {/* ── Error banner ────────────────────────────────────────── */}
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Ionicons name="warning-outline" size={14} color={C.error} style={{ marginTop: 2 }} />
-            <Text style={styles.errorText}>{error}</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: 16, paddingBottom: insets.bottom + 32 },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          {/* ── Icon badge ──────────────────────────────────────────── */}
+          <View style={styles.iconBadge}>
+            <Ionicons name="person-add" size={30} color={C.oliveGreen} />
           </View>
-        ) : null}
 
-        {/* ── Form ────────────────────────────────────────────────── */}
-        <View style={styles.form}>
+          {/* ── Heading ─────────────────────────────────────────────── */}
+          <Text style={styles.heading}>Create Account</Text>
+          <Text style={styles.subheading}>
+            Fill in your details to register as a student.
+          </Text>
 
-          {/* Name row */}
-          <View style={styles.row}>
-            <View style={[styles.fieldGroup, { flex: 1 }]}>
+          {/* ── Error banner ────────────────────────────────────────── */}
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="warning-outline" size={14} color={C.error} style={{ marginTop: 2 }} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {/* ── Form ────────────────────────────────────────────────── */}
+          <View style={styles.form}>
+
+            {/* Name row */}
+            <View style={styles.row}>
+              <View style={[styles.fieldGroup, { flex: 1 }]}>
               <Text style={styles.label}>First Name</Text>
-              <TextInput
-                style={[styles.input, focusedField === 'firstName' && styles.inputFocused]}
-                placeholder="Juan"
-                placeholderTextColor={C.textMuted}
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-                returnKeyType="next"
-                {...field('firstName')}
-              />
-            </View>
-            <View style={[styles.fieldGroup, { flex: 1 }]}>
+                <TextInput
+                  style={[styles.input, focusedField === 'firstName' && styles.inputFocused]}
+                  placeholder="Juan"
+                  placeholderTextColor={C.textMuted}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  {...field('firstName')}
+                />
+              </View>
+              <View style={[styles.fieldGroup, { flex: 1 }]}>
               <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                style={[styles.input, focusedField === 'lastName' && styles.inputFocused]}
-                placeholder="Dela Cruz"
-                placeholderTextColor={C.textMuted}
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-                returnKeyType="next"
-                {...field('lastName')}
-              />
+                <TextInput
+                  style={[styles.input, focusedField === 'lastName' && styles.inputFocused]}
+                  placeholder="Dela Cruz"
+                  placeholderTextColor={C.textMuted}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  {...field('lastName')}
+                />
+              </View>
             </View>
-          </View>
 
-          {/* SR-Code */}
-          <View style={styles.fieldGroup}>
+            {/* SR-Code */}
+            <View style={styles.fieldGroup}>
             <Text style={styles.label}>SR-Code</Text>
-            <TextInput
-              style={[styles.input, focusedField === 'srCode' && styles.inputFocused]}
-              placeholder="e.g. 21-12345"
-              placeholderTextColor={C.textMuted}
-              value={srCode}
-              onChangeText={setSrCode}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-              {...field('srCode')}
-            />
-          </View>
-
-          {/* College Selection */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>College</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.selectInput, focusedField === 'college' && styles.inputFocused]}
-              onPress={() => setCollegeModalVisible(true)}
-              activeOpacity={0.7}
-              disabled={collegesLoading}
-            >
-              <Text style={[styles.selectText, !selectedCollege && styles.placeholderText]}>
-                {collegesLoading
-                  ? 'Loading colleges...'
-                  : selectedCollege?.college_name || 'Select your college'}
-              </Text>
-              {collegesLoading ? (
-                <ActivityIndicator size="small" color={C.oliveGreen} />
-              ) : (
-                <Ionicons name="chevron-down" size={20} color={C.textMuted} />
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Program Selection */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Program</Text>
-            <TouchableOpacity
-              style={[styles.input, styles.selectInput, focusedField === 'program' && styles.inputFocused]}
-              onPress={() => selectedCollege ? setProgramModalVisible(true) : setError('Please select a college first.')}
-              activeOpacity={0.7}
-              disabled={!selectedCollege || programsLoading}
-            >
-              <Text style={[styles.selectText, !selectedProgram && styles.placeholderText, !selectedCollege && styles.disabledText]}>
-                {programsLoading
-                  ? 'Loading programs...'
-                  : selectedProgram?.program_name || 'Select your program'}
-              </Text>
-              {programsLoading ? (
-                <ActivityIndicator size="small" color={C.oliveGreen} />
-              ) : (
-                <Ionicons name="chevron-down" size={20} color={!selectedCollege ? C.border : C.textMuted} />
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Password */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={[styles.passwordRow, focusedField === 'password' && styles.inputFocused]}>
               <TextInput
-                style={styles.passwordInput}
-                placeholder="At least 8 characters"
+                style={[styles.input, focusedField === 'srCode' && styles.inputFocused]}
+                placeholder="e.g. 21-12345"
                 placeholderTextColor={C.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
+                value={srCode}
+                onChangeText={setSrCode}
+                autoCapitalize="none"
+                autoCorrect={false}
                 returnKeyType="next"
-                {...field('password')}
+                {...field('srCode')}
               />
+            </View>
+
+            {/* College Selection */}
+            <View style={styles.fieldGroup}>
+            <Text style={styles.label}>College</Text>
               <TouchableOpacity
-                onPress={() => setShowPassword((v) => !v)}
+                style={[styles.input, styles.selectInput, focusedField === 'college' && styles.inputFocused]}
+                onPress={() => setCollegeModalVisible(true)}
                 activeOpacity={0.7}
-                style={styles.eyeBtn}
+                disabled={collegesLoading}
               >
-                <Ionicons
-                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={C.textMuted}
-                />
+                <Text style={[styles.selectText, !selectedCollege && styles.placeholderText]}>
+                  {collegesLoading
+                    ? 'Loading colleges...'
+                    : selectedCollege?.college_name || 'Select your college'}
+                </Text>
+                {collegesLoading ? (
+                  <ActivityIndicator size="small" color={C.oliveGreen} />
+                ) : (
+                  <Ionicons name="chevron-down" size={20} color={C.textMuted} />
+                )}
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Confirm Password */}
-          <View style={styles.fieldGroup}>
+            {/* Program Selection */}
+            <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Program</Text>
+              <TouchableOpacity
+                style={[styles.input, styles.selectInput, focusedField === 'program' && styles.inputFocused]}
+                onPress={() => selectedCollege ? setProgramModalVisible(true) : setError('Please select a college first.')}
+                activeOpacity={0.7}
+                disabled={!selectedCollege || programsLoading}
+              >
+                <Text style={[styles.selectText, !selectedProgram && styles.placeholderText, !selectedCollege && styles.disabledText]}>
+                  {programsLoading
+                    ? 'Loading programs...'
+                    : selectedProgram?.program_name || 'Select your program'}
+                </Text>
+                {programsLoading ? (
+                  <ActivityIndicator size="small" color={C.oliveGreen} />
+                ) : (
+                  <Ionicons name="chevron-down" size={20} color={!selectedCollege ? C.border : C.textMuted} />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Password */}
+            <View style={styles.fieldGroup}>
+            <Text style={styles.label}>Password</Text>
+              <View style={[styles.passwordRow, focusedField === 'password' && styles.inputFocused]}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="At least 8 characters"
+                  placeholderTextColor={C.textMuted}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  returnKeyType="next"
+                  {...field('password')}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword((v) => !v)}
+                  activeOpacity={0.7}
+                  style={styles.eyeBtn}
+                >
+                  <Ionicons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={C.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Confirm Password */}
+            <View style={styles.fieldGroup}>
             <Text style={styles.label}>Confirm Password</Text>
-            <View style={[styles.passwordRow, focusedField === 'confirmPassword' && styles.inputFocused]}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Re-enter your password"
-                placeholderTextColor={C.textMuted}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                returnKeyType="done"
-                onSubmitEditing={handleSignUp}
-                {...field('confirmPassword')}
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword((v) => !v)}
-                activeOpacity={0.7}
-                style={styles.eyeBtn}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={20}
-                  color={C.textMuted}
+              <View style={[styles.passwordRow, focusedField === 'confirmPassword' && styles.inputFocused]}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="Re-enter your password"
+                  placeholderTextColor={C.textMuted}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  returnKeyType="done"
+                  onSubmitEditing={handleSignUp}
+                  {...field('confirmPassword')}
                 />
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowConfirmPassword((v) => !v)}
+                  activeOpacity={0.7}
+                  style={styles.eyeBtn}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={C.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
+
+            {/* Sign Up button */}
+            <TouchableOpacity
+              style={[styles.signUpBtn, loading && styles.btnDisabled]}
+              activeOpacity={0.8}
+              onPress={handleSignUp}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color={C.white} />
+              ) : (
+                <Text style={styles.signUpBtnText}>CREATE ACCOUNT</Text>
+              )}
+            </TouchableOpacity>
           </View>
 
-          {/* Sign Up button */}
-          <TouchableOpacity
-            style={[styles.signUpBtn, loading && styles.btnDisabled]}
-            activeOpacity={0.8}
-            onPress={handleSignUp}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color={C.white} />
-            ) : (
-              <Text style={styles.signUpBtnText}>CREATE ACCOUNT</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+          {/* ── Divider ─────────────────────────────────────────────── */}
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerLabel}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-        {/* ── Divider ─────────────────────────────────────────────── */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerLabel}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        {/* ── Already have account ─────────────────────────────────── */}
-        <View style={styles.loginRow}>
-          <Text style={styles.loginPrompt}>Already have an account? </Text>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => router.back()}
-          >
-            <Text style={styles.loginLink}>Sign In</Text>
-          </TouchableOpacity>
+          {/* ── Already have account ─────────────────────────────────── */}
+          <View style={styles.loginRow}>
+            <Text style={styles.loginPrompt}>Already have an account? </Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.loginLink}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Footer ──────────────────────────────────────────────── */}
@@ -466,6 +470,16 @@ export default function StudentSignupScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerBar: {
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    backgroundColor: C.cream,
+    zIndex: 10,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: C.cream,
+  },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 24,
@@ -475,13 +489,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 32,
     alignSelf: 'flex-start',
+    paddingVertical: 4,
   },
   backText: {
     fontSize: 14,
     color: C.oliveGreen,
     fontWeight: '600',
+  },
+  card: {
+    backgroundColor: C.white,
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 24,
+    marginTop: 8,
+    marginBottom: 18,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
   iconBadge: {
     width: 72,
@@ -631,6 +659,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 11,
     color: C.textMuted,
+    marginTop: 18,
+    marginBottom: 8,
   },
   selectInput: {
     flexDirection: 'row',
